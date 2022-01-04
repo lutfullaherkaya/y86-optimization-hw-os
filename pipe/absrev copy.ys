@@ -1,28 +1,3 @@
-#######################################################################
-# Test for copying block of size 4;
-#######################################################################
-	.pos 0
-main:	irmovq Stack, %rsp  	# Set up stack pointer
-
-	# Set up arguments for copy function and then invoke it
-	irmovq $4, %rdx		# src and dst have 4 elements
-	irmovq dest, %rsi	# dst array
-	irmovq src, %rdi	# src array
-    # corrupt all the unused registers to prevent assumptions
-    irmovq $0x5710331, %rax
-    irmovq $0x5710331, %rbx
-    irmovq $0x5710331, %rcx
-    irmovq $0x5710331, %rbp
-    irmovq $0x5710331, %r8
-    irmovq $0x5710331, %r9
-    irmovq $0x5710331, %r10
-    irmovq $0x5710331, %r11
-    irmovq $0x5710331, %r12
-    irmovq $0x5710331, %r13
-    irmovq $0x5710331, %r14
-	call absrev		 
-	halt			# should halt with abs sum in %rax
-StartFun:
 #/* $begin absrev-ys */
 ##################################################################
 # absrev.ys - Reverse a src block of len words to dst.
@@ -35,6 +10,7 @@ StartFun:
 # 15.46 after using leaq for constant substraction and addition
 # 14.42 after substracting negative value from sum instead of taking absolute value
 # 13.94 after updating loop variables before the sum addition and  using duplicate code instead of jumping to the Negative branch.
+# 12.71
 
 ##################################################################
 # Do not modify this portion
@@ -58,8 +34,8 @@ absrev:
     addq %rsi, %rcx     	# add dst. finally got dst_rev = dst + len - 1
 	
 
-    andq %rdx,%rdx    		# len <= 0?
-    jle UnrolledDone            	# if so, goto Done:
+    icmpq $1, %rdx    		# len > 1?
+    jle UnrolledDone		# if so, goto Done:
 UnrolledLoop:    
     mrmovq (%rdi), %r10 	# read val from src...
     rmmovq %r10, (%rcx) 	# ...and store it to dst
@@ -70,21 +46,22 @@ UnrolledLoop:
     leaq $16(%rdi), %rdi	# src += 2
 	leaq $-16(%rcx), %rcx	# dst_rev -= 2
 
-	addq %r11, %r10			# sum the values of unrolled iteration
-    andq %r10, %r10    		# val >= 0?
-    jge UnrolledPositive	# if so, skip negating
-    subq %r10, %rax      	# sum -= negativevalue
+	rrmovq %r11, %r13
+	xorq %r11, %r11
+	subq %r13, %r11
+	cmovl %r13, %r11
 
+	rrmovq %r10, %r13
+	xorq %r10, %r10
+	subq %r13, %r10
+	cmovl %r13, %r10
 
-	# duplicate code for avoiding the unneccesary jump to Negative
+    addq %r10, %rax			# sum += absval
+	addq %r11, %rax			# sum += absval
+
     icmpq $1, %rdx    		# len > 1?
     jg UnrolledLoop			# if so, goto UnrolledLoop:
-	jmp UnrolledDone
-UnrolledPositive:
-    addq %r10, %rax     	# sum += positivevalue
 
-    icmpq $1, %rdx    		# len > 1?
-    jg UnrolledLoop			# if so, goto UnrolledLoop:
 UnrolledDone:
 
     andq %rdx,%rdx    		# len <= 0?
@@ -97,17 +74,12 @@ Loop:
     leaq $8(%rdi), %rdi		# src += 1
 	leaq $-8(%rcx), %rcx	# dst_rev -= 1
 
-    andq %r10, %r10    		# val >= 0?
-    jge Positive        	# if so, skip negating
-    subq %r10, %rax      	# sum -= negativevalue
+	rrmovq %r10, %r13
+	xorq %r10, %r10
+	subq %r13, %r10
+	cmovl %r13, %r10
 
-
-	# duplicate code for avoiding the unneccesary jump to Negative
-    andq %rdx, %rdx    		# len > 0?
-    jg Loop             	# if so, goto Loop:
-	jmp Done
-Positive:
-    addq %r10, %rax     	# sum += positivevalue
+    addq %r10, %rax      	# sum += absval
 
     andq %rdx,%rdx    		# len > 0?
     jg Loop             	# if so, goto Loop:
@@ -120,47 +92,3 @@ Done:
 # Keep the following label at the end of your function
 End:
 #/* $end absrev-ys */
-EndFun:
-
-###############################
-# Source and destination blocks 
-###############################
-	.align 8
-src:
-	.quad 1
-	.quad -2
-	.quad -3
-	.quad 4
-	.quad 0xbcdefa # This shouldn't get moved
-
-	.align 16
-Predest:
-	.quad 0xbcdefa
-dest:
-	.quad 0xcdefab
-	.quad 0xcdefab
-	.quad 0xcdefab
-	.quad 0xcdefab
-Postdest:
-	.quad 0xdefabc
-
-.align 8
-# Run time stack
-	.quad 0
-	.quad 0
-	.quad 0
-	.quad 0
-	.quad 0
-	.quad 0
-	.quad 0
-	.quad 0
-	.quad 0
-	.quad 0
-	.quad 0
-	.quad 0
-	.quad 0
-	.quad 0
-	.quad 0
-	.quad 0
-
-Stack:

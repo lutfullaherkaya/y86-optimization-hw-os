@@ -9,7 +9,9 @@
 # 17.53 after multiplying %rcx by two instead of adding one by one
 # 15.46 after using leaq for constant substraction and addition
 # 14.42 after substracting negative value from sum instead of taking absolute value
-# 13.95 after updating loop variables before the sum addition and  using duplicate code instead of jumping to the Negative branch.
+# 13.94 after updating loop variables before the sum addition and  using duplicate code instead of jumping to the Negative branch.
+# 12.72 after introducing 2x1 unrolling but calculating the abs values inside the loop with conditional moves instead of subtracing if negative. i tested that subtracting when negative might be more effective.
+
 
 ##################################################################
 # Do not modify this portion
@@ -33,15 +35,45 @@ absrev:
     addq %rsi, %rcx     	# add dst. finally got dst_rev = dst + len - 1
 	
 
-    andq %rdx,%rdx    		# len <= 0?
-    jle Done            	# if so, goto Done:
-Loop:    
+    icmpq $1, %rdx    		# len > 1?
+    jle UnrolledDone		# if so, goto Done:
+UnrolledLoop:    
     mrmovq (%rdi), %r10 	# read val from src...
     rmmovq %r10, (%rcx) 	# ...and store it to dst
+    mrmovq $8(%rdi), %r11 	# read val from src+1...
+    rmmovq %r11, $-8(%rcx) 	# ...and store it to dst-1
 
-	leaq $-1(%rdx), %rdx	# len--
-    leaq $8(%rdi), %rdi		# src++
-	leaq $-8(%rcx), %rcx	# dst_rev--
+	leaq $-2(%rdx), %rdx	# len -= 2
+    leaq $16(%rdi), %rdi	# src += 2
+	leaq $-16(%rcx), %rcx	# dst_rev -= 2
+
+	rrmovq %r11, %r13
+	xorq %r11, %r11
+	subq %r13, %r11
+	cmovl %r13, %r11
+
+	rrmovq %r10, %r13
+	xorq %r10, %r10
+	subq %r13, %r10
+	cmovl %r13, %r10
+
+
+    addq %r10, %rax
+	addq %r11, %rax
+
+    icmpq $1, %rdx    		# len > 1?
+    jg UnrolledLoop			# if so, goto UnrolledLoop:
+UnrolledDone:
+
+    andq %rdx,%rdx    		# len <= 0?
+    jle Done            	# if so, goto Done:
+Loop:
+	mrmovq (%rdi), %r10 	# read val from src...
+    rmmovq %r10, (%rcx) 	# ...and store it to dst
+
+	leaq $-1(%rdx), %rdx	# len -= 1
+    leaq $8(%rdi), %rdi		# src += 1
+	leaq $-8(%rcx), %rcx	# dst_rev -= 1
 
     andq %r10, %r10    		# val >= 0?
     jge Positive        	# if so, skip negating
@@ -49,12 +81,12 @@ Loop:
 
 
 	# duplicate code for avoiding the unneccesary jump to Negative
-    andq %rdx,%rdx    		# len > 0?
+    andq %rdx, %rdx    		# len > 0?
     jg Loop             	# if so, goto Loop:
 	jmp Done
 Positive:
     addq %r10, %rax     	# sum += positivevalue
-	
+
     andq %rdx,%rdx    		# len > 0?
     jg Loop             	# if so, goto Loop:
 ##################################################################
