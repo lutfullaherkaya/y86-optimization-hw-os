@@ -12,7 +12,7 @@
 # 13.94 after updating loop variables before the sum addition and  using duplicate code instead of jumping to the Negative branch.
 # 12.72 after introducing 2x1 unrolling but calculating the abs values inside the loop with conditional moves instead of subtracing if negative. i tested that subtracting when negative might be more effective.
 # 12.28 after using jumps instead of conditional move for abs value. finally i started to get non-zero points :)
-
+# 12.43 after doing 2x2 unrolling. increasing the accumulators didn't make it more efficient but I am keeping it for now. maybe I have to look at the pipeline file.
 
 ##################################################################
 # Do not modify this portion
@@ -22,14 +22,14 @@ absrev:
 ##################################################################
 # You can modify this portion
     # Loop header
-    xorq %rax,%rax    	# sum = 0;
-
+    xorq %rax, %rax    	# sum1 = 0;
+	xorq %rbp, %rbp		# sum2 = 0;
     
     # all this for dst_rev = dst + len - 1
     xorq %rcx, %rcx     	# zero rcx
     addq %rdx, %rcx     	# rcx = len
     addq %rcx, %rcx     	# rcx = 2*len
-    addq %rcx, %rcx     	# rcx = 4*len
+    addq %rcx, %rcx   1  	# rcx = 4*len
     addq %rcx, %rcx     	# rcx = 8*len
     
     leaq $-8(%rcx), %rcx    # rcx -= 8
@@ -50,24 +50,25 @@ UnrolledLoop:
 
 	andq %r10, %r10    		# val >= 0?
     jge IfPositive1        	# if so, skip negating
-	subq %r10, %rax
+	subq %r10, %rax			# sum1 -= negval
 	jmp Continue1
 IfPositive1:
-	addq %r10, %rax
+	addq %r10, %rax			# sum1 += posval
 Continue1:
 
 	andq %r11, %r11    		# val >= 0?
     jge IfPositive2        	# if so, skip negating
-	subq %r11, %rax
+	subq %r11, %rbp			# sum2 -= negval
 	jmp Continue2
 IfPositive2:
-	addq %r11, %rax
+	addq %r11, %rbp			# sum2 += posval
 Continue2:
 
 
     icmpq $1, %rdx    		# len > 1?
     jg UnrolledLoop			# if so, goto UnrolledLoop:
 UnrolledDone:
+	addq %rbp, %rax			# sum1 += sum2
 
     andq %rdx,%rdx    		# len <= 0?
     jle Done            	# if so, goto Done:
