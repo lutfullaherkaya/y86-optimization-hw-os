@@ -13,6 +13,8 @@
 # 12.72 after introducing 2x1 unrolling but calculating the abs values inside the loop with conditional moves instead of subtracing if negative. i tested that subtracting when negative might be more effective.
 # 12.28 after using jumps instead of conditional move for abs value. finally i started to get non-zero points :)
 # 12.43 after doing 2x2 unrolling. increasing the accumulators didn't make it more efficient but I am keeping it for now. maybe I have to look at the pipeline file.
+# 11.50 after doing 4x2 unrolling.
+
 
 ##################################################################
 # Do not modify this portion
@@ -36,7 +38,7 @@ absrev:
     addq %rsi, %rcx     	# add dst. finally got dst_rev = dst + len - 1
 	
 
-    icmpq $1, %rdx    		# len > 1?
+    icmpq $3, %rdx    		# len <= 3?
     jle UnrolledDone		# if so, goto Done:
 UnrolledLoop:    
     mrmovq (%rdi), %r10 	# read val from src...
@@ -44,9 +46,6 @@ UnrolledLoop:
     mrmovq $8(%rdi), %r11 	# read val from src+1...
     rmmovq %r11, $-8(%rcx) 	# ...and store it to dst-1
 
-	leaq $-2(%rdx), %rdx	# len -= 2
-    leaq $16(%rdi), %rdi	# src += 2
-	leaq $-16(%rcx), %rcx	# dst_rev -= 2
 
 	andq %r10, %r10    		# val >= 0?
     jge IfPositive1        	# if so, skip negating
@@ -64,11 +63,39 @@ IfPositive2:
 	addq %r11, %rbp			# sum2 += posval
 Continue2:
 
+    mrmovq $16(%rdi), %r10 	# read val from src+2...
+    rmmovq %r10, $-16(%rcx) 	# ...and store it to dst-2
+    mrmovq $24(%rdi), %r11 	# read val from src+3...
+    rmmovq %r11, $-24(%rcx) 	# ...and store it to dst-3
 
-    icmpq $1, %rdx    		# len > 1?
+
+	andq %r10, %r10    		# val >= 0?
+    jge IfPositive3        	# if so, skip negating
+	subq %r10, %rax			# sum1 -= negval
+	jmp Continue3
+IfPositive3:
+	addq %r10, %rax			# sum1 += posval
+Continue3:
+
+	andq %r11, %r11    		# val >= 0?
+    jge IfPositive4        	# if so, skip negating
+	subq %r11, %rbp			# sum2 -= negval
+	jmp Continue4
+IfPositive4:
+	addq %r11, %rbp			# sum2 += posval
+Continue4:
+
+	leaq $-4(%rdx), %rdx	# len -= 4
+    leaq $32(%rdi), %rdi	# src += 4
+	leaq $-32(%rcx), %rcx	# dst_rev -= 4
+
+
+    icmpq $3, %rdx    		# len > 3?
     jg UnrolledLoop			# if so, goto UnrolledLoop:
 UnrolledDone:
 	addq %rbp, %rax			# sum1 += sum2
+
+
 
     andq %rdx,%rdx    		# len <= 0?
     jle Done            	# if so, goto Done:
