@@ -32,7 +32,7 @@ long long gen_instr_valid()
        || (if_id_next->icode) == (I_JMP) || (if_id_next->icode) == (I_CALL)
        || (if_id_next->icode) == (I_RET) || (if_id_next->icode) == 
       (I_PUSHQ) || (if_id_next->icode) == (I_POPQ) || (if_id_next->icode)
-       == (I_ICMPQ));
+       == (I_ICMPQ) || (if_id_next->icode) == (I_LEAQ));
 }
 
 long long gen_f_stat()
@@ -47,7 +47,8 @@ long long gen_need_regids()
       (I_ALU) || (if_id_next->icode) == (I_PUSHQ) || (if_id_next->icode)
        == (I_POPQ) || (if_id_next->icode) == (I_IRMOVQ) || 
       (if_id_next->icode) == (I_RMMOVQ) || (if_id_next->icode) == 
-      (I_MRMOVQ) || (if_id_next->icode) == (I_ICMPQ));
+      (I_MRMOVQ) || (if_id_next->icode) == (I_ICMPQ) || (if_id_next->icode)
+       == (I_LEAQ));
 }
 
 long long gen_need_valC()
@@ -55,7 +56,7 @@ long long gen_need_valC()
     return ((if_id_next->icode) == (I_IRMOVQ) || (if_id_next->icode) == 
       (I_RMMOVQ) || (if_id_next->icode) == (I_MRMOVQ) || 
       (if_id_next->icode) == (I_JMP) || (if_id_next->icode) == (I_CALL) || 
-      (if_id_next->icode) == (I_ICMPQ));
+      (if_id_next->icode) == (I_ICMPQ) || (if_id_next->icode) == (I_LEAQ));
 }
 
 long long gen_f_predPC()
@@ -77,17 +78,18 @@ long long gen_d_srcB()
 {
     return (((if_id_curr->icode) == (I_ALU) || (if_id_curr->icode) == 
         (I_RMMOVQ) || (if_id_curr->icode) == (I_MRMOVQ) || 
-        (if_id_curr->icode) == (I_ICMPQ)) ? (if_id_curr->rb) : (
-        (if_id_curr->icode) == (I_PUSHQ) || (if_id_curr->icode) == (I_POPQ)
-         || (if_id_curr->icode) == (I_CALL) || (if_id_curr->icode) == 
-        (I_RET)) ? (REG_RSP) : (REG_NONE));
+        (if_id_curr->icode) == (I_ICMPQ) || (if_id_curr->icode) == (I_LEAQ)
+        ) ? (if_id_curr->rb) : ((if_id_curr->icode) == (I_PUSHQ) || 
+        (if_id_curr->icode) == (I_POPQ) || (if_id_curr->icode) == (I_CALL)
+         || (if_id_curr->icode) == (I_RET)) ? (REG_RSP) : (REG_NONE));
 }
 
 long long gen_d_dstE()
 {
     return (((if_id_curr->icode) == (I_RRMOVQ) || (if_id_curr->icode) == 
         (I_IRMOVQ) || (if_id_curr->icode) == (I_ALU)) ? (if_id_curr->rb) : 
-      ((if_id_curr->icode) == (I_PUSHQ) || (if_id_curr->icode) == (I_POPQ)
+      ((if_id_curr->icode) == (I_LEAQ)) ? (if_id_curr->ra) : (
+        (if_id_curr->icode) == (I_PUSHQ) || (if_id_curr->icode) == (I_POPQ)
          || (if_id_curr->icode) == (I_CALL) || (if_id_curr->icode) == 
         (I_RET)) ? (REG_RSP) : (REG_NONE));
 }
@@ -125,10 +127,11 @@ long long gen_aluA()
     return (((id_ex_curr->icode) == (I_RRMOVQ) || (id_ex_curr->icode) == 
         (I_ALU)) ? (id_ex_curr->vala) : ((id_ex_curr->icode) == (I_IRMOVQ)
          || (id_ex_curr->icode) == (I_RMMOVQ) || (id_ex_curr->icode) == 
-        (I_MRMOVQ) || (id_ex_curr->icode) == (I_ICMPQ)) ? 
-      (id_ex_curr->valc) : ((id_ex_curr->icode) == (I_CALL) || 
-        (id_ex_curr->icode) == (I_PUSHQ)) ? -8 : ((id_ex_curr->icode) == 
-        (I_RET) || (id_ex_curr->icode) == (I_POPQ)) ? 8 : 0);
+        (I_MRMOVQ) || (id_ex_curr->icode) == (I_ICMPQ) || 
+        (id_ex_curr->icode) == (I_LEAQ)) ? (id_ex_curr->valc) : (
+        (id_ex_curr->icode) == (I_CALL) || (id_ex_curr->icode) == (I_PUSHQ)
+        ) ? -8 : ((id_ex_curr->icode) == (I_RET) || (id_ex_curr->icode) == 
+        (I_POPQ)) ? 8 : 0);
 }
 
 long long gen_aluB()
@@ -137,15 +140,16 @@ long long gen_aluB()
         (I_MRMOVQ) || (id_ex_curr->icode) == (I_ALU) || (id_ex_curr->icode)
          == (I_CALL) || (id_ex_curr->icode) == (I_ICMPQ) || 
         (id_ex_curr->icode) == (I_PUSHQ) || (id_ex_curr->icode) == (I_RET)
-         || (id_ex_curr->icode) == (I_POPQ)) ? (id_ex_curr->valb) : (
-        (id_ex_curr->icode) == (I_RRMOVQ) || (id_ex_curr->icode) == 
-        (I_IRMOVQ)) ? 0 : 0);
+         || (id_ex_curr->icode) == (I_POPQ) || (id_ex_curr->icode) == 
+        (I_LEAQ)) ? (id_ex_curr->valb) : ((id_ex_curr->icode) == (I_RRMOVQ)
+         || (id_ex_curr->icode) == (I_IRMOVQ)) ? 0 : 0);
 }
 
 long long gen_alufun()
 {
     return (((id_ex_curr->icode) == (I_ALU)) ? (id_ex_curr->ifun) : (
-        (id_ex_curr->icode) == (I_ICMPQ)) ? (A_SUB) : (A_ADD));
+        (id_ex_curr->icode) == (I_LEAQ)) ? (A_ADD) : ((id_ex_curr->icode)
+         == (I_ICMPQ)) ? (A_SUB) : (A_ADD));
 }
 
 long long gen_set_cc()

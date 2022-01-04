@@ -172,7 +172,7 @@ word aluB = [
 ## Set the ALU function
 word alufun = [
 	icode == IOPQ : ifun;
-	icode == ILEAQ : 0;
+	icode == ILEAQ : ALUADD;
 	1 : ALUADD;
 ];
 

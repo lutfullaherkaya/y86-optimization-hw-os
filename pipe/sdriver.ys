@@ -28,8 +28,8 @@ StartFun:
 # absrev.ys - Reverse a src block of len words to dst.
 # Return the sum of absolute values of words contained in src.
 #
-# Include your name and ID here.
-# Describe how and why you modified the baseline code.
+# Lutfullah Erkaya 2448363
+# todo: Describe how and why you modified the baseline code.
 ##################################################################
 # Do not modify this portion
 # Function prologue.
@@ -89,10 +89,10 @@ EndFun:
 ###############################
 	.align 8
 src:
-	.quad -1
-	.quad 2
-	.quad 3
-	.quad -4
+	.quad 1
+	.quad -2
+	.quad -3
+	.quad 4
 	.quad 0xbcdefa # This shouldn't get moved
 
 	.align 16

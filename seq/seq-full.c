@@ -87,8 +87,8 @@ long long gen_aluB()
 
 long long gen_alufun()
 {
-    return (((icode) == (I_ALU)) ? (ifun) : ((icode) == (I_LEAQ)) ? 0 : 
-      (A_ADD));
+    return (((icode) == (I_ALU)) ? (ifun) : ((icode) == (I_LEAQ)) ? (A_ADD)
+       : (A_ADD));
 }
 
 long long gen_set_cc()

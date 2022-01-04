@@ -3,8 +3,14 @@
 # absrev.ys - Reverse a src block of len words to dst.
 # Return the sum of absolute values of words contained in src.
 #
-# Include your name and ID here.
-# Describe how and why you modified the baseline code.
+# Lutfullah Erkaya 2448363
+# todo: Describe how and why you modified the baseline code.
+# beginning: 17.83 cpe
+# 17.53 after multiplying %rcx by two instead of adding one by one
+# 15.46 after using leaq for constant substraction and addition
+# 14.42 after substracting negative value from sum instead of taking absolute value
+# 13.95 after updating loop variables before the sum addition and  using duplicate code instead of jumping to the Negative branch.
+
 ##################################################################
 # Do not modify this portion
 # Function prologue.
@@ -14,40 +20,43 @@ absrev:
 # You can modify this portion
     # Loop header
     xorq %rax,%rax    	# sum = 0;
+
     
     # all this for dst_rev = dst + len - 1
-    xorq %rcx, %rcx     # zero rcx
-    addq %rdx, %rcx     # add len eight times
-    addq %rdx, %rcx
-    addq %rdx, %rcx
-    addq %rdx, %rcx
-    addq %rdx, %rcx
-    addq %rdx, %rcx
-    addq %rdx, %rcx
-    addq %rdx, %rcx
-    irmovq $8, %r8      # for subtracting 8
-    addq %rsi, %rcx     # add dst
-    subq %r8, %rcx      # finally, rcx holds dst_rev
+    xorq %rcx, %rcx     	# zero rcx
+    addq %rdx, %rcx     	# rcx = len
+    addq %rcx, %rcx     	# rcx = 2*len
+    addq %rcx, %rcx     	# rcx = 4*len
+    addq %rcx, %rcx     	# rcx = 8*len
+    
+    leaq $-8(%rcx), %rcx    # rcx -= 8
+    addq %rsi, %rcx     	# add dst. finally got dst_rev = dst + len - 1
+	
 
-    andq %rdx,%rdx    	# len <= 0?
-    jle Done            # if so, goto Done:
+    andq %rdx,%rdx    		# len <= 0?
+    jle Done            	# if so, goto Done:
 Loop:    
-    mrmovq (%rdi), %r10 # read val from src...
-    rmmovq %r10, (%rcx) # ...and store it to dst
-    andq %r10, %r10    	# val >= 0?
-    jge Positive        # if so, skip negating
-    rrmovq %r10, %r9    # temporary move
-    xorq %r10, %r10     # zero r10
-    subq %r9, %r10      # negation achieved!
+    mrmovq (%rdi), %r10 	# read val from src...
+    rmmovq %r10, (%rcx) 	# ...and store it to dst
+
+	leaq $-1(%rdx), %rdx	# len--
+    leaq $8(%rdi), %rdi		# src++
+	leaq $-8(%rcx), %rcx	# dst_rev--
+
+    andq %r10, %r10    		# val >= 0?
+    jge Positive        	# if so, skip negating
+    subq %r10, %rax      	# sum -= negativevalue
+
+
+	# duplicate code for avoiding the unneccesary jump to Negative
+    andq %rdx,%rdx    		# len > 0?
+    jg Loop             	# if so, goto Loop:
+	jmp Done
 Positive:
-    addq %r10, %rax     # sum += absval
-    irmovq $1, %r10
-    subq %r10, %rdx    	# len--
-    irmovq $8, %r10
-    addq %r10, %rdi    	# src++
-    subq %r10, %rcx    	# dst_rev--
-    andq %rdx,%rdx    	# len > 0?
-    jg Loop             # if so, goto Loop:
+    addq %r10, %rax     	# sum += positivevalue
+	
+    andq %rdx,%rdx    		# len > 0?
+    jg Loop             	# if so, goto Loop:
 ##################################################################
 # Do not modify the following section of code
 # Function epilogue.
