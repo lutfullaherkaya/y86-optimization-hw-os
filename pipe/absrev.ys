@@ -16,6 +16,7 @@
 # 11.50 after doing 4x2 unrolling.
 # 11.40 after doing 8x2 unrolling. it wont get any faster than this unrolling. maybe i can try also unrolling smaller than 8 in another layer idk i think i should look for other optimization opportunities. it should get me 1.16 points actually, i calculated it. it is worth it to do another layer of 3x1 on the remaining un-unrolled 7 elements.
 # 11.15 after doing 8x2 with 3x1 unrolling to the remaining elements. 
+# 11.07 directly initializing rcx = len instead of 0
 
 ##################################################################
 # Do not modify this portion
@@ -29,10 +30,9 @@ absrev:
 	xorq %rbp, %rbp		# sum2 = 0;
     
     # all this for dst_rev = dst + len - 1
-    xorq %rcx, %rcx     	# zero rcx
-    addq %rdx, %rcx     	# rcx = len
+    rrmovq %rdx, %rcx     	# rcx = len
     addq %rcx, %rcx     	# rcx = 2*len
-    addq %rcx, %rcx   1  	# rcx = 4*len
+    addq %rcx, %rcx     	# rcx = 4*len
     addq %rcx, %rcx     	# rcx = 8*len
     
     leaq $-8(%rcx), %rcx    # rcx -= 8
@@ -141,6 +141,8 @@ Continue8:
 UnrolledDone:
 	addq %rbp, %rax			# sum1 += sum2
 
+# UNROLLED REMAINING LOOP --------------------------------------
+
     icmpq $2, %rdx    		# len <= 2?
     jle UnrolledRemainingDone		# if so, goto Done:
 UnrolledRemainingLoop:    
@@ -187,6 +189,8 @@ RemainingContinue3:
     jg UnrolledRemainingLoop			# if so, goto UnrolledRemainingLoop:
 UnrolledRemainingDone:
 
+
+# REMAINING LOOP
     andq %rdx,%rdx    		# len <= 0?
     jle Done            	# if so, goto Done:
 Loop:
