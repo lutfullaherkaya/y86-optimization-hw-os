@@ -15,6 +15,7 @@
 # 12.43 after doing 2x2 unrolling. increasing the accumulators didn't make it more efficient but I am keeping it for now. maybe I have to look at the pipeline file.
 # 11.50 after doing 4x2 unrolling.
 # 11.40 after doing 8x2 unrolling. it wont get any faster than this unrolling. maybe i can try also unrolling smaller than 8 in another layer idk i think i should look for other optimization opportunities. it should get me 1.16 points actually, i calculated it. it is worth it to do another layer of 3x1 on the remaining un-unrolled 7 elements.
+# 11.15 after doing 8x2 with 3x1 unrolling to the remaining elements. 
 
 ##################################################################
 # Do not modify this portion
@@ -38,6 +39,7 @@ absrev:
     addq %rsi, %rcx     	# add dst. finally got dst_rev = dst + len - 1
 	
 
+# UNROLLED LOOP -------------------------------------------------
     icmpq $7, %rdx    		# len <= 7?
     jle UnrolledDone		# if so, goto Done:
 UnrolledLoop:    
@@ -139,7 +141,51 @@ Continue8:
 UnrolledDone:
 	addq %rbp, %rax			# sum1 += sum2
 
+    icmpq $2, %rdx    		# len <= 2?
+    jle UnrolledRemainingDone		# if so, goto Done:
+UnrolledRemainingLoop:    
+    mrmovq (%rdi), %r10 	# read val from src...
+    rmmovq %r10, (%rcx) 	# ...and store it to dst
+    mrmovq $8(%rdi), %r11 	# read val from src+1...
+    rmmovq %r11, $-8(%rcx) 	# ...and store it to dst-1
+    mrmovq $16(%rdi), %r12 	# read val from src+2...
+    rmmovq %r12, $-16(%rcx) 	# ...and store it to dst-2
 
+
+	andq %r10, %r10    		# val >= 0?
+    jge RemainingIfPositive1        	# if so, add to accumulator
+	subq %r10, %rax			# sum1 -= negval
+	jmp RemainingContinue01
+RemainingIfPositive1:
+	addq %r10, %rax			# sum1 += posval
+RemainingContinue01:
+
+	andq %r11, %r11    		# val >= 0?
+    jge RemainingIfPositive2        	# if so, add to accumulator
+	subq %r11, %rax			# sum1 -= negval
+	jmp RemainingContinue2
+RemainingIfPositive2:
+	addq %r11, %rax			# sum1 += posval
+RemainingContinue2:
+
+	andq %r12, %r12    		# val >= 0?
+    jge RemainingIfPositive3        	# if so, add to accumulator
+	subq %r12, %rax			# sum1 -= negval
+	jmp RemainingContinue3
+RemainingIfPositive3:
+	addq %r12, %rax			# sum1 += posval
+RemainingContinue3:
+
+
+
+	leaq $-3(%rdx), %rdx	# len -= 3
+    leaq $24(%rdi), %rdi	# src += 3
+	leaq $-24(%rcx), %rcx	# dst_rev -= 3
+
+
+    icmpq $2, %rdx    		# len > 2?
+    jg UnrolledRemainingLoop			# if so, goto UnrolledRemainingLoop:
+UnrolledRemainingDone:
 
     andq %rdx,%rdx    		# len <= 0?
     jle Done            	# if so, goto Done:
